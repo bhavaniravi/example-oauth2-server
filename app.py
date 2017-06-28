@@ -200,9 +200,10 @@ def load_token(access_token=None, refresh_token=None):
 
 @oauth.tokensetter
 def save_token(token, request, *args, **kwargs):
+    user_id = User.query.filter_by(id=request.client.user_id).first().id
     toks = Token.query.filter_by(
         client_id=request.client.client_id,
-        user_id=request.user.id
+        user_id=user_id
     )
     # make sure that every client has only one token connected to a user
     for t in toks:
@@ -218,7 +219,7 @@ def save_token(token, request, *args, **kwargs):
         _scopes=token['scope'],
         expires=expires,
         client_id=request.client.client_id,
-        user_id=request.user.id,
+        user_id=user_id,
     )
     db.session.add(tok)
     db.session.commit()
@@ -234,14 +235,11 @@ def access_token():
 @app.route('/oauth/authorize', methods=['GET', 'POST'])
 @oauth.authorize_handler
 def authorize(*args, **kwargs):
-    user = current_user()
-    if not user:
-        return redirect('/')
     if request.method == 'GET':
         client_id = kwargs.get('client_id')
         client = Client.query.filter_by(client_id=client_id).first()
         kwargs['client'] = client
-        kwargs['user'] = user
+        kwargs['user'] = client.user
         return render_template('authorize.html', **kwargs)
 
     confirm = request.form.get('confirm', 'no')
